@@ -2,13 +2,14 @@ import cockatrice from "./cockatrice";
 import mtgo from "./mtgo";
 import mtga from "./mtga";
 import text from "./text";
+import magicord from "./magicord";
 
 const toJSON = (filename, deck) => JSON.stringify(deck, null, 2);
 const json = {
   name: "JSON",
   download: toJSON,
   downloadExtension: ".json",
-  copy: toJSON
+  copy: toJSON,
 };
 
 export default {
@@ -16,5 +17,6 @@ export default {
   mtga,
   mtgo,
   text,
-  json
+  json,
+  magicord,
 };
