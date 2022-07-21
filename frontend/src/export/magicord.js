@@ -16,7 +16,7 @@ function text(name, deck) {
     "Sideboard",
     ...deck[ZONE_SIDEBOARD].map(renderCopyCard),
   ].join("\n");
-  return result;
+  return btoa(result);
 }
 
 function renderCopyCard({ count, card }) {
