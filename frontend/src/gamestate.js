@@ -1,22 +1,22 @@
-import {countBy, findIndex, pullAt, range, remove} from "lodash";
+import { countBy, findIndex, pullAt, range, remove } from "lodash";
 import _ from "utils/utils";
 import EventEmitter from "events";
-import {ZONE_JUNK, ZONE_MAIN, ZONE_PACK, ZONE_SIDEBOARD} from "./zones";
+import { ZONE_JUNK, ZONE_MAIN, ZONE_PACK, ZONE_SIDEBOARD } from "./zones";
 import BASIC_LANDS_BY_COLOR_SIGN from "./basiclands";
 
 export const COLORS_TO_LANDS_NAME = {
-  "W": "Plains",
-  "U": "Island",
-  "B": "Swamp",
-  "R": "Mountain",
-  "G": "Forest",
+  W: "Plains",
+  U: "Island",
+  B: "Swamp",
+  R: "Mountain",
+  G: "Forest",
 };
 
 const defaultState = () => ({
   [ZONE_MAIN]: [],
   [ZONE_SIDEBOARD]: [],
   [ZONE_PACK]: [],
-  [ZONE_JUNK]: []
+  [ZONE_JUNK]: [],
 });
 
 /**
@@ -45,18 +45,21 @@ class GameState extends EventEmitter {
   #pickCardIds;
   #burnCardIds;
   #picksPerPack;
+  #firstPackPicks;
 
-  constructor({
-    state = defaultCardState(),
-    landDistribution = defaultLandDistribution(),
-    pickCardIds = [],
-    burnCardIds = []
-  } = {
-    state: defaultCardState(),
-    landDistribution: defaultLandDistribution(),
-    pickCardIds: [],
-    burnCardIds: []
-  }) {
+  constructor(
+    {
+      state = defaultCardState(),
+      landDistribution = defaultLandDistribution(),
+      pickCardIds = [],
+      burnCardIds = [],
+    } = {
+      state: defaultCardState(),
+      landDistribution: defaultLandDistribution(),
+      pickCardIds: [],
+      burnCardIds: [],
+    }
+  ) {
     super();
     this.#state = state;
     this.#landDistribution = landDistribution;
@@ -72,10 +75,10 @@ class GameState extends EventEmitter {
   get(zoneName) {
     return this.#zoneState[zoneName];
   }
-  getAutopickCardIds(){
+  getAutopickCardIds() {
     return this.#pickCardIds;
   }
-  countCardsByName(zoneName, fun = ({name}) => name) {
+  countCardsByName(zoneName, fun = ({ name }) => name) {
     return this.countCardsBy(zoneName, fun);
   }
 
@@ -111,18 +114,19 @@ class GameState extends EventEmitter {
    * @param {array} cards
    */
   addToPool(zoneName, cards) {
-    Object.entries(this.#landDistribution).forEach(([zoneName, landsRepartition]) => {
-      Object.entries(landsRepartition).forEach(([colorSign, number]) => {
-        const basicLand = BASIC_LANDS_BY_COLOR_SIGN[colorSign];
-        this._setLands(zoneName, basicLand, number);
-      });
-    });
+    Object.entries(this.#landDistribution).forEach(
+      ([zoneName, landsRepartition]) => {
+        Object.entries(landsRepartition).forEach(([colorSign, number]) => {
+          const basicLand = BASIC_LANDS_BY_COLOR_SIGN[colorSign];
+          this._setLands(zoneName, basicLand, number);
+        });
+      }
+    );
 
-    cards
-      .forEach((card) => {
-        const knownZone = this.#state[card.cardId];
-        this.add(knownZone || zoneName, card);
-      });
+    cards.forEach((card) => {
+      const knownZone = this.#state[card.cardId];
+      this.add(knownZone || zoneName, card);
+    });
     this.updState();
   }
 
@@ -146,7 +150,10 @@ class GameState extends EventEmitter {
   resetLands() {
     Object.values(COLORS_TO_LANDS_NAME).forEach((basicLandName) => {
       [ZONE_MAIN, ZONE_SIDEBOARD, ZONE_JUNK].forEach((zoneName) => {
-        remove(this.get(zoneName), ({name}) => basicLandName.toLowerCase() === name.toLowerCase());
+        remove(
+          this.get(zoneName),
+          ({ name }) => basicLandName.toLowerCase() === name.toLowerCase()
+        );
       });
     });
     this.#landDistribution = defaultLandDistribution();
@@ -172,14 +179,15 @@ class GameState extends EventEmitter {
       landDistribution: this.#landDistribution,
       pickCardIds: this.#pickCardIds,
       picksPerPack: this.#picksPerPack,
-      burnCardIds: this.#burnCardIds
+      firstPackPicks: this.#firstPackPicks,
+      burnCardIds: this.#burnCardIds,
     });
   }
 
   updateSelection() {
     this.emit("setSelected", {
       picks: this.#pickCardIds,
-      burns: this.#burnCardIds
+      burns: this.#burnCardIds,
     });
   }
 
@@ -191,13 +199,19 @@ class GameState extends EventEmitter {
     return this.#burnCardIds.includes(cardId.toString());
   }
 
-  updateCardPick(cardId, picksPerPack) {
-    if (this.#pickCardIds.length == picksPerPack) {
-      this.#pickCardIds.shift();
+  updateCardPick(cardId, picksPerPack, firstPackPicks, pickNumber) {
+    if (pickNumber === 1) {
+      if (this.#pickCardIds.length == firstPackPicks) {
+        this.#pickCardIds.shift();
+      }
+    } else {
+      if (this.#pickCardIds.length == picksPerPack) {
+        this.#pickCardIds.shift();
+      }
     }
 
     if (this.isBurn(cardId)) {
-      remove(this.#burnCardIds, id => id === cardId);
+      remove(this.#burnCardIds, (id) => id === cardId);
     }
 
     this.#pickCardIds.push(cardId);
@@ -221,7 +235,7 @@ class GameState extends EventEmitter {
     }
 
     if (this.isPick(cardId)) {
-      remove(this.#pickCardIds, id => id === cardId);
+      remove(this.#pickCardIds, (id) => id === cardId);
     }
 
     this.#burnCardIds.push(cardId);
@@ -229,10 +243,25 @@ class GameState extends EventEmitter {
     this.updateSelection();
   }
 
-  isSelectionReady(picksPerPack, burnsPerPack) {
+  isSelectionReady(
+    picksPerPack,
+    burnsPerPack,
+    pickNumber,
+    firstPackPicks = null
+  ) {
+    firstPackPicks = firstPackPicks ?? picksPerPack;
     const packLength = this.get(ZONE_PACK).length;
 
-    if (packLength === (this.#pickCardIds.length + this.#burnCardIds.length)) {
+    if (packLength === this.#pickCardIds.length + this.#burnCardIds.length) {
+      return true;
+    }
+
+    if (pickNumber === 1 && firstPackPicks !== this.#pickCardIds.length) {
+      return false;
+    } else if (
+      pickNumber === 1 &&
+      firstPackPicks === this.#pickCardIds.length
+    ) {
       return true;
     }
 
@@ -248,7 +277,7 @@ class GameState extends EventEmitter {
   }
 }
 
-const isLand = ({type}) => /land/i.test(type);
+const isLand = ({ type }) => /land/i.test(type);
 
 const sortLandsBeforeNonLands = (lhs, rhs) => {
   const lhsIsLand = isLand(lhs);
@@ -261,38 +290,48 @@ function Key(groups, sort) {
   let arr;
 
   switch (sort) {
-  case "cmc":
-    arr = [];
-    for (let key in groups)
-      if (parseInt(key) >= 6) {
-        [].push.apply(arr, groups[key]);
-        delete groups[key];
+    case "cmc":
+      arr = [];
+      for (let key in groups)
+        if (parseInt(key) >= 6) {
+          [].push.apply(arr, groups[key]);
+          delete groups[key];
+        }
+
+      if (arr.length) {
+        groups["6+"] || (groups["6+"] = []);
+        [].push.apply(groups["6+"], arr);
       }
+      return groups;
 
-    if (arr.length) {
-      groups["6+"] || (groups["6+"] = [])
-      ;[].push.apply(groups["6+"], arr);
-    }
-    return groups;
-
-  case "color":
-    keys =
-      ["Colorless", "White", "Blue", "Black", "Red", "Green", "Multicolor"]
-        .filter(x => keys.indexOf(x) > -1);
-    break;
-  case "rarity":
-    keys =
-      ["Mythic", "Rare", "Uncommon", "Common", "Basic", "Special"]
-        .filter(x => keys.indexOf(x) > -1);
-    break;
-  case "type":
-    keys = keys.sort();
-    break;
+    case "color":
+      keys = [
+        "Colorless",
+        "White",
+        "Blue",
+        "Black",
+        "Red",
+        "Green",
+        "Multicolor",
+      ].filter((x) => keys.indexOf(x) > -1);
+      break;
+    case "rarity":
+      keys = [
+        "Mythic",
+        "Rare",
+        "Uncommon",
+        "Common",
+        "Basic",
+        "Special",
+      ].filter((x) => keys.indexOf(x) > -1);
+      break;
+    case "type":
+      keys = keys.sort();
+      break;
   }
 
   let o = {};
-  for (let key of keys)
-    o[key] = groups[key];
+  for (let key of keys) o[key] = groups[key];
   return o;
 }
 

@@ -1,8 +1,8 @@
 import _ from "utils/utils";
 import EventEmitter from "events";
 import { Socket } from "engine.io-client";
-import {times, constant, isObject, mapValues} from "lodash";
-import {STRINGS} from "./config";
+import { times, constant, isObject, mapValues } from "lodash";
+import { STRINGS } from "./config";
 import GameState from "./gamestate";
 
 function message(msg) {
@@ -11,7 +11,7 @@ function message(msg) {
 }
 
 let App = {
-  __proto__: new EventEmitter,
+  __proto__: new EventEmitter(),
 
   state: {
     id: null,
@@ -32,6 +32,7 @@ let App = {
     chaosSealedPacksNumber: 6,
     gametype: "draft",
     picksPerPack: 1,
+    firstPackPicks: 1,
     burnsPerPack: 0,
     DoubleMasters: -1,
     gamesubtype: "regular",
@@ -70,7 +71,7 @@ let App = {
     game: {},
     mtgJsonVersion: {
       version: "0.0.0",
-      date: "1970-01-01"
+      date: "1970-01-01",
     },
     boosterRulesVersion: "",
     messages: [],
@@ -97,7 +98,7 @@ let App = {
 
     get notificationBlocked() {
       return ["denied", "notsupported"].includes(App.state.notificationResult);
-    }
+    },
   },
   init(router) {
     App.on("set", App.set);
@@ -124,7 +125,7 @@ let App = {
 
       try {
         this.state[key] = ensureNumbers(JSON.parse(val));
-      } catch(e) {
+      } catch (e) {
         delete localStorage[key];
       }
     }
@@ -135,11 +136,11 @@ let App = {
     }
   },
   connect() {
-    let {id, name} = App.state;
+    let { id, name } = App.state;
     let options = {
-      query: { id, name }
+      query: { id, name },
     };
-    if(!this.ws) {
+    if (!this.ws) {
       this.ws = new Socket(location.href, options);
       this.ws.on("message", message);
     }
@@ -158,7 +159,7 @@ let App = {
     App.state.gameState.on("updateGameState", (gameState) => {
       App.save("gameStates", {
         // ...App.state.gameStates,
-        [id]: gameState
+        [id]: gameState,
       });
     });
     App.state.gameState.on("setSelected", (state) => {
@@ -170,10 +171,8 @@ let App = {
     App.route("");
   },
   route(path) {
-    if (path === location.hash.slice(1))
-      App.update();
-    else
-      location.hash = path;
+    if (path === location.hash.slice(1)) App.update();
+    else location.hash = path;
   },
   save(key, val) {
     this.state[key] = val;
@@ -185,7 +184,8 @@ let App = {
     if (App.state.latestSet) {
       // Default sets to the latest set.
       const defaultSetCode = App.state.latestSet.code;
-      const replicateDefaultSet = (desiredLength) => times(desiredLength, constant(defaultSetCode));
+      const replicateDefaultSet = (desiredLength) =>
+        times(desiredLength, constant(defaultSetCode));
       const initializeIfEmpty = (sets, desiredLength) => {
         if (sets.length === 0) {
           sets.push(...replicateDefaultSet(desiredLength));
@@ -198,7 +198,7 @@ let App = {
     App.update();
   },
   update() {
-    if(App.component) {
+    if (App.component) {
       App.component.setState(App.state);
     }
   },
@@ -212,8 +212,7 @@ let App = {
     let hasIndex = index !== void 0;
 
     let value = App.state[key];
-    if (hasIndex)
-      value = value[index];
+    if (hasIndex) value = value[index];
 
     function requestChange(val) {
       if (hasIndex) {
@@ -226,27 +225,38 @@ let App = {
 
     return { requestChange, value };
   },
-  updateGameInfos({type, sets, packsInfo, picksPerPack, burnsPerPack}) {
+  updateGameInfos({
+    type,
+    sets,
+    packsInfo,
+    picksPerPack,
+    burnsPerPack,
+    firstPackPicks,
+  }) {
     const savename = type === "draft" ? sets[0] + "-draft" : type;
     const date = new Date();
-    const currentTime = date.toISOString().slice(0, 10).replace("T", " ") + "_" + date.toString().slice(16, 21).replace(":", "-");
+    const currentTime =
+      date.toISOString().slice(0, 10).replace("T", " ") +
+      "_" +
+      date.toString().slice(16, 21).replace(":", "-");
     App.set({
       exportDeckFilename: `${savename.replace(/\W/, "-")}_${currentTime}`,
       game: { type, sets, packsInfo, burnsPerPack },
       picksPerPack,
+      firstPackPicks,
     });
   },
-  getZone(zoneName){
+  getZone(zoneName) {
     return App.state.gameState.get(zoneName);
   },
   getSortedZone(zoneName) {
     return App.state.gameState.getSortedZone(zoneName, App.state.sort);
-  }
+  },
 };
 
 export default App;
 
-function ensureNumbers (obj) {
+function ensureNumbers(obj) {
   if (!isObject(obj)) return obj;
   if (Array.isArray(obj)) return obj;
 

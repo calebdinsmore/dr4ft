@@ -1,4 +1,4 @@
-const {version} = require("../config");
+const { version } = require("../config");
 const Game = require("./game");
 const Rooms = require("./rooms");
 const Sock = require("./sock");
@@ -8,7 +8,7 @@ const logger = require("./logger");
 function create(opts) {
   try {
     util.game(opts);
-  } catch(err) {
+  } catch (err) {
     logger.error(`user ${this.name} could not create a game - ${err.message}`);
     return this.err(err.message);
   }
@@ -21,8 +21,7 @@ function create(opts) {
 
 function join(roomID) {
   const room = Rooms.get(roomID);
-  if (!room)
-    return this.err(`No game found with id ${roomID}`);
+  if (!room) return this.err(`No game found with id ${roomID}`);
   this.exit();
   room.join(this);
 }

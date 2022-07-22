@@ -1,10 +1,10 @@
 import _ from "utils/utils";
-import {vanillaToast} from "vanilla-toast";
+import { vanillaToast } from "vanilla-toast";
 import DOMPurify from "dompurify";
-import {range, times, constant} from "lodash";
+import { range, times, constant } from "lodash";
 
 import App from "./app";
-import {ZONE_JUNK, ZONE_MAIN, ZONE_PACK, ZONE_SIDEBOARD} from "./zones";
+import { ZONE_JUNK, ZONE_MAIN, ZONE_PACK, ZONE_SIDEBOARD } from "./zones";
 import exportDeck from "./export";
 
 /**
@@ -21,15 +21,32 @@ const events = {
   },
   burn(card) {
     if (!App.state.gameState.isBurn(card.cardId)) {
-      App.state.gameState.updateCardBurn(card.cardId, App.state.game.burnsPerPack);
-    } else if (App.state.gameState.isSelectionReady(App.state.picksPerPack, App.state.game.burnsPerPack)) {
+      App.state.gameState.updateCardBurn(
+        card.cardId,
+        App.state.game.burnsPerPack
+      );
+    } else if (
+      App.state.gameState.isSelectionReady(
+        App.state.picksPerPack,
+        App.state.game.burnsPerPack,
+        App.state.pickNumber,
+        App.state.firstPackPicks
+      )
+    ) {
       App.state.gameState.resetPack();
       App.update();
       App.send("confirmSelection");
     }
   },
-  confirmSelection () {
-    if (App.state.gameState.isSelectionReady(App.state.picksPerPack, App.state.game.burnsPerPack)) {
+  confirmSelection() {
+    if (
+      App.state.gameState.isSelectionReady(
+        App.state.picksPerPack,
+        App.state.game.burnsPerPack,
+        App.state.pickNumber,
+        App.state.firstPackPicks
+      )
+    ) {
       App.send("confirmSelection");
     }
   },
@@ -40,15 +57,20 @@ const events = {
     }
 
     const dst = e.shiftKey
-      ? zoneName === ZONE_JUNK ? ZONE_MAIN : ZONE_JUNK
-      : zoneName === ZONE_SIDEBOARD ? ZONE_MAIN : ZONE_SIDEBOARD;
+      ? zoneName === ZONE_JUNK
+        ? ZONE_MAIN
+        : ZONE_JUNK
+      : zoneName === ZONE_SIDEBOARD
+      ? ZONE_MAIN
+      : ZONE_SIDEBOARD;
 
     App.state.gameState.move(zoneName, dst, card);
 
     App.update();
   },
   copy() {
-    const {exportDeckFormat: format, exportDeckFilename: filename} = App.state;
+    const { exportDeckFormat: format, exportDeckFilename: filename } =
+      App.state;
     const textField = document.createElement("textarea");
     textField.value = exportDeck[format].copy(filename, collectDeck());
 
@@ -60,7 +82,8 @@ const events = {
     hash();
   },
   download() {
-    const {exportDeckFormat: format, exportDeckFilename: filename} = App.state;
+    const { exportDeckFormat: format, exportDeckFilename: filename } =
+      App.state;
     const data = exportDeck[format].download(filename, collectDeck());
 
     _.download(data, filename + exportDeck[format].downloadExtension);
@@ -68,8 +91,8 @@ const events = {
     hash();
   },
   start() {
-    const {addBots, useTimer, timerLength, shufflePlayers} = App.state;
-    const options = {addBots, useTimer, timerLength, shufflePlayers};
+    const { addBots, useTimer, timerLength, shufflePlayers } = App.state;
+    const options = { addBots, useTimer, timerLength, shufflePlayers };
     App.send("start", options);
   },
   pickNumber(pick) {
@@ -83,7 +106,7 @@ const events = {
         if (document.hidden) {
           new Notification("Pack awaiting", {
             icon: "/4-hq.png",
-            body: "A new pack is available!"
+            body: "A new pack is available!",
           });
         }
       } else {
@@ -98,14 +121,23 @@ const events = {
     App.save("log", draftLog);
   },
   getLog() {
-    const {gameId, log, players, self, sets, gamesubtype, exportDeckFilename} = App.state;
+    const {
+      gameId,
+      log,
+      players,
+      self,
+      sets,
+      gamesubtype,
+      exportDeckFilename,
+    } = App.state;
     const isCube = /cube/.test(gamesubtype);
-    const date = new Date().toISOString().slice(0, -5).replace(/-/g, "").replace(/:/g, "").replace("T", "_");
-    const data = [
-      `Event #: ${gameId}`,
-      `Time: ${date}`,
-      "Players:"
-    ];
+    const date = new Date()
+      .toISOString()
+      .slice(0, -5)
+      .replace(/-/g, "")
+      .replace(/:/g, "")
+      .replace("T", "_");
+    const data = [`Event #: ${gameId}`, `Time: ${date}`, "Players:"];
 
     players.forEach((player, i) =>
       data.push(i === self ? `--> ${player.name}` : `    ${player.name}`)
@@ -123,30 +155,55 @@ const events = {
   },
 
   create() {
-    let {gametype, gamesubtype, seats, title, isPrivate, modernOnly, totalChaos, chaosDraftPacksNumber, chaosSealedPacksNumber, picksPerPack} = App.state;
+    let {
+      gametype,
+      gamesubtype,
+      seats,
+      title,
+      isPrivate,
+      modernOnly,
+      totalChaos,
+      chaosDraftPacksNumber,
+      chaosSealedPacksNumber,
+      picksPerPack,
+      firstPackPicks,
+    } = App.state;
     seats = Number(seats);
 
     //TODO: either accept to use the legacy types (draft, sealed, chaos draft ...) by  keeping it like this
     // OR change backend to accept "regular draft" instead of "draft" and "regular sealed" instead of "sealed"
-    const type = `${/regular/.test(gamesubtype) ? "" : gamesubtype + " "}${gametype}`;
+    const type = `${
+      /regular/.test(gamesubtype) ? "" : gamesubtype + " "
+    }${gametype}`;
 
-    let options = {type, seats, title, isPrivate, modernOnly, totalChaos,picksPerPack};
+    let options = {
+      type,
+      seats,
+      title,
+      isPrivate,
+      modernOnly,
+      totalChaos,
+      picksPerPack,
+      firstPackPicks,
+    };
 
     switch (gamesubtype) {
-    case "regular": {
-      const {setsDraft, setsSealed} = App.state;
-      options.sets = gametype === "sealed" ? setsSealed : setsDraft;
-      break;
-    }
-    case "decadent":
-      options.sets = App.state.setsDecadentDraft;
-      break;
-    case "cube":
-      options.cube = parseCubeOptions();
-      break;
-    case "chaos":
-      options.chaosPacksNumber = /draft/.test(gametype) ? chaosDraftPacksNumber : chaosSealedPacksNumber;
-      break;
+      case "regular": {
+        const { setsDraft, setsSealed } = App.state;
+        options.sets = gametype === "sealed" ? setsSealed : setsDraft;
+        break;
+      }
+      case "decadent":
+        options.sets = App.state.setsDecadentDraft;
+        break;
+      case "cube":
+        options.cube = parseCubeOptions();
+        break;
+      case "chaos":
+        options.chaosPacksNumber = /draft/.test(gametype)
+          ? chaosDraftPacksNumber
+          : chaosSealedPacksNumber;
+        break;
     }
     App.send("create", options);
   },
@@ -167,6 +224,11 @@ const events = {
   },
   changePicksPerPack(event) {
     App.state.picksPerPack = event.currentTarget.value;
+    App.state.firstPackPicks = event.currentTarget.value;
+    App.update();
+  },
+  changeFirstPackPicks(event) {
+    App.state.firstPackPicks = event.currentTarget.value;
     App.update();
   },
   pool(cards) {
@@ -192,20 +254,18 @@ const events = {
     const colors = ["W", "U", "B", "R", "G"];
     const colorRegex = /{[^}]+}/g;
     const manaSymbols = {};
-    colors.forEach(x => manaSymbols[x] = 0);
+    colors.forEach((x) => (manaSymbols[x] = 0));
 
     // Count the number of mana symbols of each type.
     App.state.gameState.get(ZONE_MAIN).forEach((card) => {
-      if (!card.manaCost)
-        return;
+      if (!card.manaCost) return;
       const cardManaSymbols = card.manaCost.match(colorRegex);
 
       colors.forEach((color) => {
         Object.values(cardManaSymbols).forEach((symbol) => {
           // Test to see if '{U}' contains 'U'. This also handles things like
           // '{G/U}' triggering both 'G' and 'U'.
-          if (symbol.indexOf(color) !== -1)
-            manaSymbols[color] += 1;
+          if (symbol.indexOf(color) !== -1) manaSymbols[color] += 1;
         });
       });
     });
@@ -214,12 +274,12 @@ const events = {
     // NB: We could set only the sideboard lands of the colors we are using to
     // 5, but this reveals information to the opponent on Cockatrice (and
     // possibly other clients) since it tells the opponent the sideboard size.
-    colors.forEach(color => {
+    colors.forEach((color) => {
       App.state.gameState.setLands(ZONE_SIDEBOARD, color, 5);
     });
 
-    const mainColors = colors.filter(x => manaSymbols[x] > 0);
-    mainColors.forEach(x => manaSymbols[x] = Math.max(3, manaSymbols[x]));
+    const mainColors = colors.filter((x) => manaSymbols[x] > 0);
+    mainColors.forEach((x) => (manaSymbols[x] = Math.max(3, manaSymbols[x])));
     mainColors.sort((a, b) => manaSymbols[b] - manaSymbols[a]);
 
     // Round-robin choose the lands to go into the deck. For example, if the
@@ -244,9 +304,9 @@ const events = {
     //
     //   * The problem of deciding how to round land counts is now easy to
     //   solve.
-    const manaSymbolsToAdd = mainColors.map(color => manaSymbols[color]);
+    const manaSymbolsToAdd = mainColors.map((color) => manaSymbols[color]);
     const colorsToAdd = [];
-    const emptyManaSymbols = () => !manaSymbolsToAdd.every(x => x === 0);
+    const emptyManaSymbols = () => !manaSymbolsToAdd.every((x) => x === 0);
 
     for (let i = 0; emptyManaSymbols(); i = (i + 1) % mainColors.length) {
       if (manaSymbolsToAdd[i] === 0) {
@@ -280,12 +340,12 @@ const events = {
   },
   chat(messages) {
     App.set({
-      messages
+      messages,
     });
   },
   hear(message) {
     App.set({
-      messages: [...App.state.messages, message]
+      messages: [...App.state.messages, message],
     });
     if (!App.state.chat) {
       vanillaToast.info(`${message.name}: ${DOMPurify.sanitize(message.text)}`);
@@ -293,7 +353,7 @@ const events = {
   },
   command(message) {
     App.set({
-      messages: [...App.state.messages, message]
+      messages: [...App.state.messages, message],
     });
   },
   notification(e) {
@@ -314,28 +374,42 @@ const events = {
 Object.keys(events).forEach((event) => App.on(event, events[event]));
 
 const parseCubeOptions = () => {
-  let {list, cards, packs, cubePoolSize, burnsPerPack} = App.state;
+  let { list, cards, packs, cubePoolSize, burnsPerPack } = App.state;
   cards = Number(cards);
   packs = Number(packs);
   cubePoolSize = Number(cubePoolSize);
 
   list = list
     .split("\n")
-    .map(x => x
-      .trim()
-      .replace(/^\d+.\s*/, "")
-      .replace(/\s*\/+\s*/g, " // ")
-      .toLowerCase())
-    .filter(x => x)
+    .map((x) =>
+      x
+        .trim()
+        .replace(/^\d+.\s*/, "")
+        .replace(/\s*\/+\s*/g, " // ")
+        .toLowerCase()
+    )
+    .filter((x) => x)
     .join("\n");
 
-  return {list, cards, packs, cubePoolSize, burnsPerPack};
+  return { list, cards, packs, cubePoolSize, burnsPerPack };
 };
 
 const clickPack = (card) => {
   if (!App.state.gameState.isPick(card.cardId)) {
-    App.state.gameState.updateCardPick(card.cardId, App.state.picksPerPack);
-  } else if (App.state.gameState.isSelectionReady(App.state.picksPerPack, App.state.game.burnsPerPack)) {
+    App.state.gameState.updateCardPick(
+      card.cardId,
+      App.state.picksPerPack,
+      App.state.firstPackPicks,
+      App.state.pickNumber
+    );
+  } else if (
+    App.state.gameState.isSelectionReady(
+      App.state.picksPerPack,
+      App.state.game.burnsPerPack,
+      App.state.pickNumber,
+      App.state.firstPackPicks
+    )
+  ) {
     App.state.gameState.resetPack();
     App.update();
     App.send("confirmSelection");
@@ -351,10 +425,13 @@ const hash = () => {
 
 const collectDeck = () => ({
   [ZONE_MAIN]: collectByName(App.state.gameState.get(ZONE_MAIN)),
-  [ZONE_SIDEBOARD]: collectByName(App.state.gameState.get(ZONE_SIDEBOARD), true)
+  [ZONE_SIDEBOARD]: collectByName(
+    App.state.gameState.get(ZONE_SIDEBOARD),
+    true
+  ),
 });
 
-function collectByName (cards, sideboard = false) {
+function collectByName(cards, sideboard = false) {
   const collector = cards.reduce((acc, card) => {
     if (acc[card.name]) acc[card.name].count += 1;
     else acc[card.name] = { card, count: 1, sideboard };

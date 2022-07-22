@@ -1,23 +1,28 @@
-const {sample, pull, times} = require("lodash");
+const { sample, pull, times } = require("lodash");
 
 const Player = require("./index");
 const logger = require("../logger");
 
 module.exports = class Bot extends Player {
-  constructor(picksPerPack, burnsPerPack, gameId) {
+  constructor(picksPerPack, burnsPerPack, firstPackPicks, gameId) {
     super({
       isBot: true,
       isConnected: true,
       name: "bot",
       id: "",
     });
-    this.gameId= gameId;
+    this.gameId = gameId;
     this.picksPerPack = picksPerPack;
     this.burnsPerPack = burnsPerPack;
+    this.firstPackPicks = firstPackPicks;
   }
 
   getPack(pack) {
-    const cardsToPick = Math.min(this.picksPerPack, pack.length);
+    this.pickNumber++;
+    const cardsToPick =
+      this.pickNumber === 1
+        ? this.firstPackPicks
+        : Math.min(this.picksPerPack, pack.length);
     times(cardsToPick, () => {
       const randomPick = sample(pack);
       logger.info(`GameID: ${this.gameId}, Bot, picked: ${randomPick.name}`);
