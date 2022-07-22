@@ -433,8 +433,23 @@ const collectDeck = () => ({
 
 function collectByName(cards, sideboard = false) {
   const collector = cards.reduce((acc, card) => {
-    if (acc[card.name]) acc[card.name].count += 1;
-    else acc[card.name] = { card, count: 1, sideboard };
+    if (acc[card.name]) {
+      acc[card.name].count += 1;
+      acc[card.name].amountFoil = card.foil
+        ? acc[card.name].amountFoil + 1
+        : acc[card.name].amountFoil;
+      acc[card.name].amountNonFoil = card.foil
+        ? acc[card.name].amountNonFoil
+        : acc[card.name].amountNonFoil + 1;
+    } else {
+      acc[card.name] = {
+        card,
+        count: 1,
+        sideboard,
+        amountFoil: card.foil ? 1 : 0,
+        amountNonFoil: card.foil ? 0 : 1,
+      };
+    }
 
     return acc;
   }, {});

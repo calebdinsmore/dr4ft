@@ -12,13 +12,12 @@ function text(name, deck) {
   const result = [
     "Deck",
     ...deck[ZONE_MAIN].map(renderCopyCard),
-    "",
     "Sideboard",
     ...deck[ZONE_SIDEBOARD].map(renderCopyCard),
-  ].join("\n");
-  return btoa(result);
+  ].join("|");
+  return result;
 }
 
-function renderCopyCard({ count, card }) {
-  return `${count} ${card.uuid}`;
+function renderCopyCard({ card, amountFoil, amountNonFoil }) {
+  return `${card.uuid}.${amountFoil}.${amountNonFoil}`;
 }
