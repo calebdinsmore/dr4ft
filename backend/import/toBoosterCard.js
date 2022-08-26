@@ -1,4 +1,5 @@
 const { upperFirst, find } = require("lodash");
+const logger = require("../logger");
 const uuidV1 = require("uuid").v1;
 
 const toBoosterCard = (setCode) => (mtgjsonCard, index, rawCards) => {
@@ -23,13 +24,14 @@ const toBoosterCard = (setCode) => (mtgjsonCard, index, rawCards) => {
     toughness,
     loyalty,
     text,
-    uuid = `dr4ft-${uuidV1()}`
+    uuid = `dr4ft-${uuidV1()}`,
   } = mtgjsonCard;
   if (supertypes.includes("Basic")) {
     rarity = "basic";
   }
 
-  const {isDoubleFaced, flippedCardURL, flippedIsBack, flippedNumber} = getDoubleFacedProps(mtgjsonCard, rawCards);
+  const { isDoubleFaced, flippedCardURL, flippedIsBack, flippedNumber } =
+    getDoubleFacedProps(mtgjsonCard, rawCards);
   const color = upperFirst(getColor(mtgjsonCard, rawCards));
 
   return {
@@ -46,9 +48,11 @@ const toBoosterCard = (setCode) => (mtgjsonCard, index, rawCards) => {
     type: types[types.length - 1],
     manaCost: manaCost || "",
     rarity: upperFirst(rarity),
-    url: url || `https://api.scryfall.com/cards/${identifiers.scryfallId}?format=image`,
+    url:
+      url ||
+      `https://api.scryfall.com/cards/${identifiers.scryfallId}?format=image`,
     identifiers: {
-      scryfallId: identifiers.scryfallId
+      scryfallId: identifiers.scryfallId,
     },
     layout,
     isDoubleFaced,
@@ -61,7 +65,7 @@ const toBoosterCard = (setCode) => (mtgjsonCard, index, rawCards) => {
     toughness,
     loyalty,
     text,
-    frameEffects
+    frameEffects,
   };
 };
 
@@ -70,19 +74,25 @@ const COLORS = {
   U: "blue",
   B: "black",
   R: "red",
-  G: "green"
+  G: "green",
 };
 
-function getDoubleFacedProps({layout, name}, rawCards) {
-  const isDoubleFaced = /^modal_dfc$|^double-faced$|^transform$|^flip$|^meld$/i.test(layout);
+function getDoubleFacedProps({ layout, name }, rawCards) {
+  const isDoubleFaced =
+    /^modal_dfc$|^double-faced$|^transform$|^flip$|^meld$/i.test(layout);
   let names = name.split(" // ");
   let flippedCardURL = "";
   let flippedIsBack = false;
   let flippedNumber = "";
   if (isDoubleFaced) {
-    rawCards.some(x => {
-      if (x.faceName === names[1]) {
-        const scryfallId = (x.identifiers && x.identifiers.scryfallId) || x.scryfallId;
+    rawCards.some((x) => {
+      if (x.name === name && x.related) {
+        flippedCardURL = `https://raw.githubusercontent.com/calebdinsmore/subnivean-dark/main/img/${x.related}.full.jpg`;
+        flippedIsBack = true;
+        return true;
+      } else if (names.length > 1 && x.faceName === names[1]) {
+        const scryfallId =
+          (x.identifiers && x.identifiers.scryfallId) || x.scryfallId;
         if (!scryfallId) throw new Error("cannot find scryfallId");
 
         flippedCardURL = `https://api.scryfall.com/cards/${scryfallId}?format=image`;
@@ -99,17 +109,26 @@ function getDoubleFacedProps({layout, name}, rawCards) {
     });
   }
   return {
-    isDoubleFaced, flippedCardURL, flippedIsBack, flippedNumber
+    isDoubleFaced,
+    flippedCardURL,
+    flippedIsBack,
+    flippedNumber,
   };
 }
 
-function getColor({ colors, layout, name,faceName, frameEffects = [] }, rawCards) {
+function getColor(
+  { colors, layout, name, faceName, frameEffects = [] },
+  rawCards
+) {
   if (frameEffects.includes("devoid")) {
     return "colorless";
   }
 
   // Handle split cards colors
-  if (["split", "aftermath"].includes(layout) && name.split(" // ").length > 1) {
+  if (
+    ["split", "aftermath"].includes(layout) &&
+    name.split(" // ").length > 1
+  ) {
     const otherName = name.split(" // ").filter((n) => n !== faceName)[0];
     const otherCard = find(rawCards, (card) => card.faceName === otherName);
     if (otherCard && otherCard.colors) {
@@ -122,12 +141,12 @@ function getColor({ colors, layout, name,faceName, frameEffects = [] }, rawCards
   }
 
   switch (colors.length) {
-  case 0:
-    return "colorless";
-  case 1:
-    return COLORS[colors[0]];
-  default:
-    return "multicolor";
+    case 0:
+      return "colorless";
+    case 1:
+      return COLORS[colors[0]];
+    default:
+      return "multicolor";
   }
 }
 

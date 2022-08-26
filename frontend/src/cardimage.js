@@ -47,8 +47,8 @@ export const getFallbackSrc = ({setCode, number}) => {
  * @param {Card} card
  * @returns {string} the image url to display
  */
-export const getCardSrc = ({identifiers, url, setCode, number, isBack}) => (
+export const getCardSrc = ({identifiers, url, setCode, number, isBack, flippedCardURL}) => (
   identifiers && identifiers.scryfallId != null && identifiers.scryfallId !== ""
     ? `${getScryfallImageWithLang(setCode, number)}${isBack ? "&face=back" : ""}`
-    : url
+    : isBack ? flippedCardURL : url
 );

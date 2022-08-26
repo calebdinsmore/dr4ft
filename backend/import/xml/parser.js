@@ -1,10 +1,11 @@
 const { XMLParser } = require("fast-xml-parser");
+const logger = require("../../logger");
 
 function parse(content) {
   const parser = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: "",
-    textNodeName: "textNodeName"
+    textNodeName: "textNodeName",
   });
   const parsedContent = parser.parse(content);
   const root = parsedContent.cockatrice_carddatabase;
@@ -12,7 +13,7 @@ function parse(content) {
     throw new Error("root node <cockatrice_carddatabase> must be present");
   }
 
-  const {sets, cards} = root;
+  const { sets, cards } = root;
   if (!cards) {
     throw new Error("node <cards> must be present");
   }
@@ -29,7 +30,12 @@ function parse(content) {
     }
 
     sets.set.forEach((set) => {
-      const { name: code, longname: name = "", settype: type = "", releasedate: releaseDate = "" } = set;
+      const {
+        name: code,
+        longname: name = "",
+        settype: type = "",
+        releasedate: releaseDate = "",
+      } = set;
       if (!code) {
         throw new Error("<sets> property <set> must contain an attribute name");
       }
@@ -39,7 +45,7 @@ function parse(content) {
         type,
         releaseDate,
         cards: [],
-        baseSetSize: 0
+        baseSetSize: 0,
       };
     });
   }
@@ -52,11 +58,19 @@ function parse(content) {
     cards.card = [cards.card];
   }
 
-
-  cards.card.forEach(c => {
-    const { textNodeName: setCode, num = 0, picurl = "", picURL = "", rarity } = c.set;
+  cards.card.forEach((c) => {
+    const {
+      textNodeName: setCode,
+      num = 0,
+      picurl = "",
+      picURL = "",
+      rarity,
+      layout,
+    } = c.set;
     if (!/common|basic|uncommon|rare|mythic/i.test(rarity)) {
-      throw new Error("<card> property <set> must contain an attribute rarity with one of common, basic, uncommon, rare or mythic");
+      throw new Error(
+        "<card> property <set> must contain an attribute rarity with one of common, basic, uncommon, rare or mythic"
+      );
     }
     if (!setCode) {
       throw new Error("<card> property <set> must contain a value");
@@ -68,24 +82,25 @@ function parse(content) {
         type: "",
         releaseDate: "",
         cards: [],
-        baseSetSize: 0
+        baseSetSize: 0,
       };
     }
     const {
       cmc = 0,
       color = [],
       colors = [],
-      layout = "normal",
       loyalty = "",
       manacost = "",
       pt = "",
       side = "a",
-      type = "" } = root.version === "3" ? c : c.prop;
+      type = "",
+    } = root.version === "3" ? c : c.prop;
     const [power, toughness] = String(pt).split("/");
     const fixedColors = getTrueColors(root.version, color, colors);
     const fixedType = getTrueType(type);
     const fixedManaCost = addManaCostBrackets(String(manacost));
     const set = jsonSets[setCode];
+    const related = c.related?.textNodeName ?? "";
     set.cards.push({
       name: c.name,
       names: getNames(layout, c.name),
@@ -99,12 +114,13 @@ function parse(content) {
       power: parseInt(power) || "",
       toughness: parseInt(toughness) || "",
       url: picurl || picURL,
-      layout,
+      layout: layout || "normal",
       number: parseInt(num),
-      supertypes : [],
+      supertypes: [],
       side,
       isAlternative: false,
-      colors: fixedColors
+      colors: fixedColors,
+      related,
     });
     set.baseSetSize = set.baseSetSize + 1;
   });
@@ -118,9 +134,7 @@ const getNames = (layout, name) => {
   return [name];
 };
 
-const getTrueType = (type) => (
-  type.split("-")[0].trim()
-);
+const getTrueType = (type) => type.split("-")[0].trim();
 
 const manaSymbolRegExp = /(?:(?<!\/)(?:\d+|[^/\s])(?!\/))|\S\/\S|\/\//g;
 const addManaCostBrackets = (manacost) => {
@@ -128,16 +142,19 @@ const addManaCostBrackets = (manacost) => {
 
   return manacost
     .match(manaSymbolRegExp)
-    .map((manaSymbol) => manaSymbol === "//" ? " // " : `{${manaSymbol}}`)
+    .map((manaSymbol) => (manaSymbol === "//" ? " // " : `{${manaSymbol}}`))
     .join("");
 };
 
-const getTrueColors = (version, colorv3, colorsv4) => (
+const getTrueColors = (version, colorv3, colorsv4) =>
   version === "3"
-    ? Array.isArray(colorv3) ? colorv3 : colorv3.split("")
-    : Array.isArray(colorsv4) ? colorsv4 : colorsv4.split("")
-);
+    ? Array.isArray(colorv3)
+      ? colorv3
+      : colorv3.split("")
+    : Array.isArray(colorsv4)
+    ? colorsv4
+    : colorsv4.split("");
 
 module.exports = {
-  parse
+  parse,
 };

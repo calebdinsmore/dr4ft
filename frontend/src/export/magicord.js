@@ -1,5 +1,4 @@
 import { ZONE_MAIN, ZONE_SIDEBOARD } from "../zones";
-import aes from "crypto-js/aes";
 
 export default {
   name: "Magicord",
