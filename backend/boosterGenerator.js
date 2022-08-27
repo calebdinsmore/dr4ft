@@ -3,10 +3,22 @@ const logger = require("./logger");
 const weighted = require("weighted");
 const {sample, sampleSize, random, concat} = require("lodash");
 
+function mapSetToCustomBooster(setCode) {
+  const setBoosterMap = {
+    SND: getSubniveanBooster
+  };
+
+  return setBoosterMap[setCode];
+}
+
 const makeBoosterFromRules = (setCode) => {
   const set = getSet(setCode);
   if (!set) {
     throw new Error(`${setCode} does not exist`);
+  }
+
+  if (mapSetToCustomBooster(setCode)) {
+    return mapSetToCustomBooster(setCode)(set);
   }
 
   const setRules = getBoosterRules(setCode);
@@ -105,5 +117,28 @@ const toCard = (sheetCode) => (uuid) => ({
   ...getCardByUuid(uuid),
   foil: /foil/.test(sheetCode)
 });
+
+const getSubniveanBooster = (set) => {
+  let { Basic, Common, Uncommon } = set;
+
+  if (Uncommon && !random(1)) {
+    Uncommon = Common;
+  }
+
+  if (!Uncommon) {
+    Uncommon = Common;
+  }
+
+  const cardNames = concat(
+    sampleSize(Common, 13),
+    sampleSize(Uncommon, 1),
+  );
+
+  if (Basic) {
+    cardNames.push(sample(Basic));
+  }
+
+  return cardNames.map(getCardByUuid);
+};
 
 module.exports = makeBoosterFromRules;
