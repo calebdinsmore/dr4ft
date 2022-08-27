@@ -3,6 +3,7 @@ import mtgo from "./mtgo";
 import mtga from "./mtga";
 import text from "./text";
 import magicord from "./magicord";
+import tts from "./tts";
 
 const toJSON = (filename, deck) => JSON.stringify(deck, null, 2);
 const json = {
@@ -19,4 +20,5 @@ export default {
   text,
   json,
   magicord,
+  tts,
 };
